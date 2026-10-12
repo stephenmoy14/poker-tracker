@@ -193,14 +193,16 @@ Done (tests passing):
 - ESLint with the engine-purity rules
 - Hardening: event checks, rate limits, server-recorded authorship
   (0002 migration, tested on real Postgres)
+- Deployed on Vercel + Supabase; keep-alive ping (0003 + GitHub Action);
+  "server asleep" message
 - Shared games: Supabase schema + functions (tested on real Postgres),
   sync client with conflict handling (tested with simulated phones), room
   UI; a 3-phone hand was played through in a real browser using the
   tabs backend
 
 Next:
-1. Set up Supabase (SUPABASE.md) and try shared games on real phones
-2. Deploy (Vercel/Netlify/GitHub Pages) so phones can join off your Wi-Fi
+1. Try shared games on real phones at a real game; collect fixes
+2. Add the keep-alive secrets on GitHub (SUPABASE.md step 6)
 3. Write up the design for public online games (server-run hands, hidden
    cards, timers, accounts) before building any of it
 4. Later: real card dealing (each phone sees its own hole cards)
@@ -318,6 +320,20 @@ code with no accounts (Supabase anonymous sign-in); assume everyone's online
   - Not covered: someone making many anonymous sign-ins to dodge per-phone
     limits (Supabase's per-IP sign-in limit slows it; CAPTCHA stops it), and
     turn order still being checked on the phone only.
+- **Keep-alive (`0003_keepalive.sql`, `.github/workflows/keep-alive.yml`):**
+  `ping()` (callable with the public key, reads one row, returns 'ok') is
+  called daily by a GitHub Action using repo secrets `SUPABASE_URL` and
+  `SUPABASE_ANON_KEY`, so the free project doesn't pause after a week.
+- **Server asleep:** `src/sync/errors.ts` tells network-level failures
+  (failed fetch, timeouts, 502/503/504/540, "paused") from real refusals;
+  the Supabase backend turns them into `UnreachableError` with a message
+  saying the host can resume the project from the dashboard. The room
+  screen shows it as "The game server is asleep" with Try again. Local
+  games are unaffected.
+- **Hosting:** live at https://poker-tracker-umber-one.vercel.app (Vercel,
+  builds from GitHub `main`; env vars `VITE_SUPABASE_URL`,
+  `VITE_SUPABASE_ANON_KEY` = publishable key). Smoke-tested on the live
+  site: create room, anonymous sign-in, Live, add players, deal, act, undo.
 - **Tests:** `src/sync/__tests__/sync.test.ts` (several simulated phones on
   the stand-in server: permissions, stale phones, simultaneous taps, undo,
   edits, claims, server stamping, event checks); `supabase/tests/rooms.test.sql`

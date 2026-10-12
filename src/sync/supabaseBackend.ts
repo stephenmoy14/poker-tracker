@@ -1,6 +1,7 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from "@supabase/supabase-js";
 import type { GameEvent, PlayerId } from "../engine/types";
 import { ConflictError, PermissionError, type RoomSnapshot, type SyncBackend } from "./types";
+import { isUnreachable, UnreachableError } from "./errors";
 
 // Shared games on Supabase. Each phone signs in anonymously (no email or
 // password; the session is remembered in this browser), reads the room with
@@ -22,8 +23,14 @@ export class SupabaseBackend implements SyncBackend {
     this.signingIn ??= (async () => {
       const { data } = await this.client.auth.getSession();
       if (data.session) return;
-      const { error } = await this.client.auth.signInAnonymously();
+      let error: { message: string } | null;
+      try {
+        ({ error } = await this.client.auth.signInAnonymously());
+      } catch {
+        throw new UnreachableError();
+      }
       if (error) {
+        if (isUnreachable(error.message)) throw new UnreachableError();
         throw new Error(`Couldn't connect: ${error.message}. Is anonymous sign-in turned on in Supabase?`);
       }
     })().catch((err) => {
@@ -35,7 +42,13 @@ export class SupabaseBackend implements SyncBackend {
 
   private async rpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
     await this.session();
-    const { data, error } = await this.client.rpc(fn, args);
+    let data: unknown;
+    let error: { message: string } | null;
+    try {
+      ({ data, error } = await this.client.rpc(fn, args));
+    } catch {
+      throw new UnreachableError(); // the request never got an answer
+    }
     if (error) throw toError(error.message);
     return data as T;
   }
@@ -105,6 +118,7 @@ export class SupabaseBackend implements SyncBackend {
 
 function toError(message: string): Error {
   if (message === "conflict") return new ConflictError();
+  if (isUnreachable(message)) return new UnreachableError();
   if (message.startsWith("forbidden: ")) return new PermissionError(message.slice("forbidden: ".length));
   return new Error(message);
 }

@@ -4,6 +4,7 @@ import { getBackend } from "../../sync";
 import { useRoomGame } from "../useRoomGame";
 import { rememberRoom } from "../storage";
 import { GameView } from "./GameScreen";
+import { SERVER_ASLEEP } from "../../sync/errors";
 
 /** "#/room/K7P2QX": joins the room (if needed) and shows it live. */
 export function RoomScreen({ code, onExit }: { code: string; onExit: () => void }) {
@@ -55,14 +56,20 @@ function Loading({ text }: { text: string }) {
 }
 
 function Problem({ title, message, onExit }: { title: string; message: string; onExit: () => void }) {
+  const asleep = message === SERVER_ASLEEP;
   return (
     <main className="page">
       <section className="card">
-        <h2>{title}</h2>
-        <p className="error">{message}</p>
-        <button type="button" onClick={onExit}>
-          Back to games
-        </button>
+        <h2>{asleep ? "The game server is asleep" : title}</h2>
+        <p className={asleep ? "" : "error"}>{message}</p>
+        <div className="row">
+          <button type="button" className="primary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+          <button type="button" onClick={onExit}>
+            Back to games
+          </button>
+        </div>
       </section>
     </main>
   );

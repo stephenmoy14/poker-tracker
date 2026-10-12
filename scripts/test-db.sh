@@ -10,4 +10,5 @@ psql -v ON_ERROR_STOP=1 -q -d "$DB" -f supabase/tests/00_supabase_stub.sql
 for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -d "$DB" -f "$f"; done
 psql -v ON_ERROR_STOP=1 -q -d "$DB" -f supabase/tests/rooms.test.sql 2>&1 | grep -E "ok |FAIL|PASSED|ERROR"
 psql -v ON_ERROR_STOP=1 -q -d "$DB" -f supabase/tests/hardening.test.sql 2>&1 | grep -E "ok |FAIL|PASSED|ERROR"
+psql -v ON_ERROR_STOP=1 -q -d "$DB" -f supabase/tests/keepalive.test.sql 2>&1 | grep -E "ok |FAIL|PASSED|ERROR"
 psql -q -c "drop database $DB"

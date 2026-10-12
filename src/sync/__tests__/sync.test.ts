@@ -3,6 +3,7 @@ import { MemoryHub } from "../memoryBackend";
 import { RoomClient } from "../roomClient";
 import { stamp } from "../../app/log";
 import { HOST_ONLY, NOT_YOURS, WATCHING } from "../rules";
+import { isUnreachable } from "../errors";
 
 // Several simulated phones sharing one stand-in server.
 
@@ -184,5 +185,23 @@ describe("shared games", () => {
     hub.client("host-uid").subscribe(roomId, () => heard++);
     await host.submit({ type: "rebuy", playerId: "ann", amount: 100 });
     expect(heard).toBe(1);
+  });
+});
+
+describe("telling 'server asleep' from a refusal", () => {
+  it("treats network failures and paused-project answers as unreachable", () => {
+    for (const m of [
+      "TypeError: Failed to fetch",
+      "Load failed",
+      "NetworkError when attempting to fetch resource.",
+      "FetchError: request timed out",
+      "upstream returned 540",
+      "503 Service Unavailable",
+      "Project is paused",
+    ]) expect(isUnreachable(m), m).toBe(true);
+  });
+  it("leaves real answers alone", () => {
+    for (const m of ["conflict", "forbidden: Only the host can do that", "No game with that code", "Too many changes in a short time.", "", null])
+      expect(isUnreachable(m), String(m)).toBe(false);
   });
 });
